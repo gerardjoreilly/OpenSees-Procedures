@@ -32,11 +32,11 @@ set kips [expr $kN*4.448221615];
 # Moment
 set kNm [expr $kN*$m];
 
-# Mass
-set kg [expr $N/$g];
-set tonne [expr $kg*1000];
+# Mass (tonnes)
+set tonne 1.0;
+set kg [expr $tonne/1000];
 
-# Stress
+# Stress (kN/m2 or kPa)
 set Pa [expr $N/($m*$m)];
 set kPa [expr $Pa*1.0e3];
 set MPa [expr $Pa*1.0e6];
@@ -44,6 +44,7 @@ set Nmm2 [expr $N/($mm*$mm)];
 set kNmm2 [expr $Nmm2*1.0e3];
 set GPa [expr $Pa*1.0e9];
 set ksi [expr 6.8947573*$MPa];
+set kgcm2 [expr $kg*$g/$cm/$cm]
 
 # Angles
 set degrees [expr $pi/180];
