@@ -25,10 +25,17 @@ upvar 1 omega omega
 
 # Solve for lambda
 set lambda [eigen -genBandArpack $numModes]; # Default
+puts $lambda
 
 # If this solver doesn't work, try another
-if {[llength $lambda]==0} {set lambda [eigen -fullGenLapack $numModes]};
-if {[llength $lambda]==0} {set lambda [eigen -symmBandLapack $numModes]};
+if {[lindex $lambda 0]<=0} {
+	set lambda [eigen -fullGenLapack $numModes];
+	puts "Eigensolver failed, trying fullGenLapack...";
+}
+if {[lindex $lambda 0]<=0} {
+	set lambda [eigen -symmBandLapack $numModes];
+	puts "Eigensolver failed, trying symmBandLapack...";
+}
 
 # Record the eigenvectors
 record
