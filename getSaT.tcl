@@ -113,6 +113,9 @@ proc getSaT {EQ dt T xi} {
 
 	}
 
+	# Integrate the accg signal to get the ground velocity and displacement
+	
+
 	# Calculate Spectral Values
 	set Sd 	$umax;			# Spectral acceleration in m
 	set Sv	[expr $Sd*$w];		# Pseudo spectral velocity in m/s

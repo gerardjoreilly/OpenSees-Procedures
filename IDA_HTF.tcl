@@ -88,12 +88,17 @@
 # Vamvatsikos, D., and Cornell, C. A. [2004] “Applied Incremental Dynamic Analysis,”
 # Earthquake Spectra, Vol. 20, No.2, pp. 523–553.
 #
-# Kazantzi, A. K., and Vamvatsikos, D. [2015a] “Intensity measure selection for vulnerability studies
-# of building classes,” Earthquake Engineering & Structural Dynamics, Vol. 44, No.15, pp. 2677–2694.
+# Kazantzi, A. K., and Vamvatsikos, D. [2015a] “Intensity measure selection for vulnerability
+# studies of building classes,” Earthquake Engineering & Structural Dynamics, Vol. 44, No.15,
+# pp. 2677–2694 DOI: 10.1002/eqe.2603.
 #
 # Kazantzi, A. K., and Vamvatsikos, D. [2015b] “A Next Generation Scalar Intensity Measure for
 # Analytical Vulnerability Studies,” COMPDYN 2015 - 5th ECCOMAS Thematic Conference on Computational
 # Methods in Structural Dynamics and Earthquake Engineering, Crete Island, Greece.
+
+# Kohrangi, M., Bazzurro, P., Vamvatsikos, D., and Spillatura, A. [2017] “Conditional spectrum-based
+# ground motion record selection using average spectral acceleration,” Earthquake Engineering &
+# Structural Dynamics DOI: 10.1002/eqe.2876.
 # --------------------------------------------------------------------------------------------------
 # Inputs:
 # --------------------------------------------------------------------------------------------------
@@ -101,33 +106,40 @@
 # incrStep:		This is the increment used during the hunting phase (e.g. 0.10g)
 # maxRuns:		This is the maximum number of runs to use (e.g. 20)
 # IMtype:		Intensity measure with which to conduct the IDA.
-# 				1: 	PGA
-# 				2: 	Sa at a given period (e.g. Sa(T1)), in 3D analysis this will take
+# 				1: 	PGA - Peak ground acceeleration
+# 				2: 	Sa(T) - (e.g. Sa(T1)), in 3D analysis this will take
 # 					the geometric mean of the two record Sa(T) as the IM
-# 				3:	From Kazantzi & Vamvatsikos [2015a], the intensity measure (d) which is
+# 				3:	AvgSa - the log average of the Sa values at a number of periods
+#						(i.e. (1/n)*Sum(ln(Sa))) as defined in Kohrangi et al. [2017]
+#					4:	PGV - Peak ground velocity
+# 				5:	From Kazantzi & Vamvatsikos [2015a], the intensity measure (d) which is
 # 					given as the geometric mean (Sa,gm) at four periods defined as
 # 					[T2m, min[(T2m+T1m)/2, 1.5T2m], T1m, 1.5T1m], where T1m and T2m are
 # 					the mean first and second mode periods of the building class. Again
 # 					the 3D IM will be the Sa,gm of the two components.
-# 				4:	From Kazantzi & Vamvatsikos [2015a], the intensity measure (e) which is
+# 				6:	From Kazantzi & Vamvatsikos [2015a], the intensity measure (e) which is
 # 					given as the geometric mean (Sa,gm) at five periods defined as
 # 					[T2m, min[(T2m+T1m)/2, 1.5T2m], T1m, 1.5T1m, 2T1m], where T1m and T2m
 # 					are the mean first and second mode periods of the building class. Again
 # 					the 3D IM will be the Sa,gm of the two components.
-# 				5:	From Kazantzi & Vamvatsikos [2015b], the intensity measure the same as
+# 				7:	From Kazantzi & Vamvatsikos [2015b], the intensity measure the same as
 # 					4 above but with the inclusion of the duration via time between Arias
 # 					intensity of 5% and 75% raised to the power 0.2. This gives the IM as
 # 					Sa,gm*(t75%-t5%)^0.2
 # Tinfo:		List of period info required by specified IM (e.g {1.0 2.0})
 # 				1 - 	Dont need anything, just specify an empty list {}. It will ignore
 # 					any entries if present
-#				2 - 	Single value of period to condition to, like {1.0}
-# 				3 - 	List of the two periods T1m and T2m, like {1.0 0.5}
-# 				4 - 	List of the two periods T1m and T2m, like {1.0 0.5}
-# 				5 - 	List of the two periods T1m and T2m, like {1.0 0.5}
+#					2 - 	Single value of period to condition to, like {1.0}
+# 				3 - 	List of the periods from Tlower to Tupper like {0.1 0.2 0.3 0.4 0.5}
+# 				4	-		Dont need anything, just specify an empty list {}. It will ignore
+# 					any entries if present
+#					5 - 	List of the two periods T1m and T2m, like {1.0 0.5}
+# 				6 - 	List of the two periods T1m and T2m, like {1.0 0.5}
+# 				7 - 	List of the two periods T1m and T2m, like {1.0 0.5}
 # xi:			Elastic damping, typically 0.05
 # Dt:			Analysis time step
 # dCap:		Drift capacity in %
+# gmsdir: directory with the ground motions
 # nmsfileX:		Text file with the names of the X direction records in the form "*.txt"
 # nmsfileY:		Text file with the names of the Y direction records in the form "*.txt"
 # dtsfile:		Text file with the time steps of the records
@@ -151,8 +163,10 @@
 # --------------------------------------------------------------------------------------------------
 # To run this script, the following procedures are also required:
 # runNRHA3D: This is to run the actual non-linear response history analysis
-
-proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap nmsfileX nmsfileY dtsfile dursfile outsdir mdlfile {pflag 0}} {
+# getSaT: Get the spectral response ordinates
+# Arias: Get the Arias intensity of a record
+#
+proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap gmsdir nmsfileX nmsfileY dtsfile dursfile outsdir mdlfile {pflag 0}} {
 	# Create the output directory
 	file mkdir $outsdir
 
@@ -162,10 +176,10 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap nmsfileX nmsfile
 	puts $error_log "^^^^^^^^ STARTING IDA HTF ^^^^^^^^"
 
 	# Get the ground motion set information
-	set eqnms_listX 	[read [open $nmsfileX "r"]];
-	set eqnms_listY 	[read [open $nmsfileY "r"]];
-	set dts_list 	[read [open $dtsfile "r"]];
-	set durs_list 	[read [open $dursfile "r"]];
+	set eqnms_listX 	[read [open $gmsdir/$nmsfileX "r"]];
+	set eqnms_listY 	[read [open $gmsdir/$nmsfileY "r"]];
+	set dts_list 	[read [open $gmsdir/$dtsfile "r"]];
+	set durs_list 	[read [open $gmsdir/$dursfile "r"]];
 	set nrecs 		[llength $dts_list];
 	set g 9.81;
 
@@ -182,9 +196,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap nmsfileX nmsfile
 		if {$IMtype==1} {
 			# IM is PGA
 			# Now get the spectral ordinates
-			getSaT $EQnameX [lindex $dts_list $i-1] 0.0 $xi; # Get the PGA of the record in the X direction
+			getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] 0.0 $xi; # Get the PGA of the record in the X direction
 			set IMX $pga
-			getSaT $EQnameY [lindex $dts_list $i-1] 0.0 $xi; # Get the PGA of the record in the Y direction
+			getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] 0.0 $xi; # Get the PGA of the record in the Y direction
 			set IMY $pga
 
 			# Now we have the IMX and IMY. In IDA we will use the geomen of these to get the
@@ -196,15 +210,45 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap nmsfileX nmsfile
 			set Tcond [lindex $Tinfo 0]; # It will be the first entry in the Tinfo list
 
 			# Now get the spectral ordinates
-			getSaT $EQnameX [lindex $dts_list $i-1] $Tcond $xi; # Get the Sa(T1,5%) of the record in the X direction
+			getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] $Tcond $xi; # Get the Sa(T1,5%) of the record in the X direction
 			set IMX $Sa
-			getSaT $EQnameY [lindex $dts_list $i-1] $Tcond $xi; # Get the Sa(T1,5%) of the record in the Y direction
+			getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] $Tcond $xi; # Get the Sa(T1,5%) of the record in the Y direction
 			set IMY $Sa
 
 			# Now we have the IMX and IMY. In IDA we will use the geomen of these to get the
 			# "current" IM. This way, the same scale factor will be applied to both
 			set IMgeomean [expr pow($IMX*$IMY,0.5)];
 		} elseif {$IMtype==3} {
+			# IM is AvgSa
+			# Get the length of the periods
+			set nT [llength $Tinfo]
+
+			# Get the spectral accelerations at each period
+			set Sa_listX {};
+			set Sa_listY {};
+			for {set pn 0} {$pn < $nT} {incr pn 1} {
+				getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] [lindex $Tinfo $pn] $xi; # Get the Sa(T1,5%) of the record in the X direction
+				lappend Sa_listX $Sa
+				getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] [lindex $Tinfo $pn] $xi; # Get the Sa(T1,5%) of the record in the Y direction
+				lappend Sa_listY $Sa
+			}
+
+			# Compute the geometric mean
+			set SaXsumprod [lindex $Sa_listX 0]
+			set SaYsumprod [lindex $Sa_listY 0]
+			for {set pn 1} {$pn < $nT} {incr pn 1} {
+				set SaXsumprod [expr [lindex $Sa_listX $pn]*$SaXsumprod]
+				set SaYsumprod [expr [lindex $Sa_listX $pn]*$SaYsumprod]
+			}
+			set SaXgm [expr pow($SaXsumprod,1/($nT*1.0))]
+			set SaYgm [expr pow($SaYsumprod,1/($nT*1.0))]
+
+			# Using the geoetreic mean of the two compoents AvgSa
+			# This is the same as just takeing the AvgSa of the combined set of X and Y (i.e. at Tinfo x 2 periods)
+			set IMgeomean [expr pow($SaXgm*$SaYgm,0.5)]
+		} elseif {$IMtype==4} {
+			# IM is PGV
+		} elseif {$IMtype==5} {
 			# IM is Sa,gm at a specified periods
 			set T1m [lindex $Tinfo 0]; # It will be the first entry in the Tinfo list
 			set T2m [lindex $Tinfo 1]; # It will be the second entry in the Tinfo list
@@ -224,9 +268,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap nmsfileX nmsfile
 			set Sa_listX {};
 			set Sa_listY {};
 			for {set pn 1} {$pn<=[llength $p_list]} {incr pn 1} {
-				getSaT $EQnameX [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
+				getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
 				lappend Sa_listX $Sa
-				getSaT $EQnameY [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
+				getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
 				lappend Sa_listY $Sa
 			}
 
@@ -237,7 +281,7 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap nmsfileX nmsfile
 			# Now we have the IMX and IMY. In IDA we will use the geomen of these to get the
 			# "current" IM. This way, the same scale factor will be applied to both
 			set IMgeomean [expr pow($IMX*$IMY,0.5)];
-		} elseif {$IMtype==4} {
+		} elseif {$IMtype==6} {
 			# IM is Sa,gm at a specified periods
 			set T1m [lindex $Tinfo 0]; # It will be the first entry in the Tinfo list
 			set T2m [lindex $Tinfo 1]; # It will be the second entry in the Tinfo list
@@ -258,9 +302,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap nmsfileX nmsfile
 			set Sa_listX {};
 			set Sa_listY {};
 			for {set pn 1} {$pn<=[llength $p_list]} {incr pn 1} {
-				getSaT $EQnameX [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
+				getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
 				lappend Sa_listX $Sa
-				getSaT $EQnameY [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
+				getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
 				lappend Sa_listY $Sa
 			}
 
@@ -271,7 +315,7 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap nmsfileX nmsfile
 			# Now we have the IMX and IMY. In IDA we will use the geomen of these to get the
 			# "current" IM. This way, the same scale factor will be applied to both
 			set IMgeomean [expr pow($IMX*$IMY,0.5)];
-		} elseif {$IMtype==5} {
+		} elseif {$IMtype==7} {
 			# IM is Sa,gm at a specified periods
 			set T1m [lindex $Tinfo 0]; # It will be the first entry in the Tinfo list
 			set T2m [lindex $Tinfo 1]; # It will be the second entry in the Tinfo list
@@ -292,9 +336,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap nmsfileX nmsfile
 			set Sa_listX {};
 			set Sa_listY {};
 			for {set pn 1} {$pn<=[llength $p_list]} {incr pn 1} {
-				getSaT $EQnameX [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
+				getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
 				lappend Sa_listX $Sa
-				getSaT $EQnameY [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
+				getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
 				lappend Sa_listY $Sa
 			}
 
@@ -303,9 +347,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap nmsfileX nmsfile
 			set SagmY [expr pow([lindex $Sa_listY 0]*[lindex $Sa_listY 1]*[lindex $Sa_listY 2]*[lindex $Sa_listY 3]*[lindex $Sa_listY 4],1/5.0)];
 
 			# Get the time between 5 and 75% of Arias Intensity
-			Arias $EQnameX [lindex $dts_list $i-1] 0.05 0.75;
+			Arias $gmsdir/$EQnameX [lindex $dts_list $i-1] 0.05 0.75;
 			set t12X $t12;
-			Arias $EQnameY [lindex $dts_list $i-1] 0.05 0.75;
+			Arias $gmsdir/$EQnameY [lindex $dts_list $i-1] 0.05 0.75;
 			set t12Y $t12;
 
 			# Get the IMs in the two directions
@@ -451,156 +495,3 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap nmsfileX nmsfile
 	puts $error_log "^^^^^^^^ FINISHED IDA HTF ^^^^^^^^"
 	close $error_log
 };
-
-# --------------------------------------------------------------------------------------------------
-# -- Script to Compute Sa(T,xi%) -----
-# --------------------------------------------------------------------------------------------------
-#
-# This is a script that will return the Sa(T1) of a given record,
-# for a specified value of period T using the Newmark Average
-# Acceleration. This is based on the Newmark.m matlab function.
-proc getSaT {EQ dt T xi} {
-	# -----------------------------------
-	# Inputs:
-	# -----------------------------------
-	# EQ:   Filename which is a single column file in units g (e.g "Eq.txt")
-	# dt:   Time step in seconds (e.g 0.01)
-	# xi:   Elastic damping (e.g 0.05)
-	# T:    Period in seconds (e.g 1.0)
-
-	# -----------------------------------
-	# Outputs:
-	#------------------------------------
-	# Sa:	Sa(T,%) - Pseudo-Spectral Acceleration in g
-	# Sv: Sv(T,%) - Pseudo-Spectral Velocity in m/s
-	# Sd: Sd(T,%) - Spectral Displacement in m
-	# PGA - Peak Ground Acceleration in g
-
-	# Import the ground motion
-	set imp [open $EQ "r"];
-	set accg [read $imp];
-	close $imp
-
-	if {$T==0.0} {
-		# Make the outputs available outside the procedure
-		upvar 1 pga pga
-
-		set pga 0.0;
-		# Loop the terms (This loop is to length)
-		for {set i 1} {$i <= [llength $accg]} {incr i 1} {
-			set temp2 [expr abs([lindex $accg $i-1])]; 	# Get the absolute current ground acceleration
-			if {$temp2>$pga} {set pga $temp2};			# Find the pga
-		}
-	} else {
-		# Make the outputs available outside the procedure
-		upvar 1 Sa Sa
-		upvar 1 Sv Sv
-		upvar 1 Sd Sd
-		upvar 1 pga pga
-
-		# Set up some basics
-		set g 	9.81;		# Define gravity in metric, because this is not the stone age anymore....
-		set gamma 	0.5;		# Newmark terms (Set for Average Acceleration method)
-		set beta 	0.25;		# Newmark terms (Set for Average Acceleration method)
-		set ms	1.0; 		# Set the mass to 1kg
-		set acc 	{};
-		set p 	{};
-		for {set i 1} {$i <= [llength $accg]} {incr i 1} {
-			lappend acc [expr [lindex $accg $i-1]*$g]; 	# Change the units of the record to m/s2
-			lappend p	[expr -$ms*[lindex $acc $i-1]];	# Create the force in N
-		}
-
-		# Create time vector
-		set t {0.0};
-		for {set i 1} {$i < [llength $acc]} {incr i 1} {
-			lappend t [expr [lindex $t $i-1]+$dt];
-		}
-
-		# Calculate the initial values
-		set k 		[expr $ms*pow((2.0*3.141592654/$T),2)];		# Stiffness in N/m (which will give T following assumption of mass)
-		set w 		[expr pow(($k/$ms),0.5)];				# Circular frequency
-		set c 		[expr 2*$xi*$ms*$w];					# Damping coefficient
-		set a0 		[expr [lindex $p 0]/$ms];				# Initial acceleration in m/s2
-		set k_bar	[expr $k+$gamma*$c/$beta/$dt+$ms/$beta/$dt/$dt];	# Stiffness term (see Chopra book)
-		set A		[expr $ms/$beta/$dt+$gamma*$c/$beta];			# Constant term (see Chopra book)
-		set B		[expr $ms/2/$beta+$dt*$c*($gamma/2/$beta-1)];		# Constant term (see Chopra book)
-
-		# Initialise some vectors
-		set u {0.0};
-		set v {0.0};
-		set a {$a0};
-		set du {};
-		set dv {};
-		set da {};
-		set dp {};
-		set dp_bar {};
-
-		# Loop the terms (This loop is to length minus 1)
-		for {set i 1} {$i < [llength $t]} {incr i 1} {
-			lappend dp 		[expr [lindex $p $i]-[lindex $p $i-1]];
-			lappend dp_bar 	[expr [lindex $dp $i-1]+$A*[lindex $v $i-1]+$B*[lindex $a $i-1]];
-			lappend du		[expr [lindex $dp_bar $i-1]/$k_bar];
-			lappend dv		[expr $gamma*[lindex $du $i-1]/$beta/$dt-$gamma*[lindex $v $i-1]/$beta+$dt*(1-$gamma/2/$beta)*[lindex $a $i-1]];
-			lappend da		[expr [lindex $du $i-1]/$beta/$dt/$dt-[lindex $v $i-1]/$beta/$dt-[lindex $a $i-1]/2/$beta];
-			lappend u		[expr [lindex $u $i-1]+[lindex $du $i-1]];
-			lappend v		[expr [lindex $v $i-1]+[lindex $dv $i-1]];
-			lappend a		[expr [lindex $a $i-1]+[lindex $da $i-1]];
-		}
-
-		set umax 0.0;
-		# Loop the terms (This loop is to length)
-		for {set i 1} {$i <= [llength $t]} {incr i 1} {
-			set temp1 [expr abs([lindex $u $i-1])]; 		# Get the absolute current displacement
-			if {$temp1>$umax} {set umax $temp1};		# Find the peak displacement
-		}
-
-		set pga 0.0;
-		# Loop the terms (This loop is to length)
-		for {set i 1} {$i <= [llength $accg]} {incr i 1} {
-			set temp2 [expr abs([lindex $accg $i-1])]; 	# Get the absolute current ground acceleration
-			if {$temp2>$pga} {set pga $temp2};			# Find the pga
-		}
-
-		# Calculate Spectral Values
-		set Sd 	$umax;			# Spectral acceleration in m
-		set Sv	[expr $Sd*$w];		# Pseudo spectral velocity in m/s
-		set Sa	[expr $Sd*$w*$w/$g];	# Pseudo spectral acceleration in g
-	}
-
-}
-
-# This is a function to compute the Arias Intensity of a ground motion
-proc Arias {EQ dt I1 I2} {
-	upvar 1 I I
-	upvar 1 t12 t12
-
-	# Import the ground motion
-	set imp [open $EQ "r"];
-	set accg [read $imp];
-	close $imp
-
-	# Create time vector
-	set t {0.0};
-	for {set i 1} {$i < [llength $accg]} {incr i 1} {
-		lappend t [expr [lindex $t $i-1]+$dt];
-	}
-
-	# Compute the Arias Intensity
-	set Ia {0.0};
-	for {set i 1} {$i < [llength $accg]} {incr i 1} {
-	    lappend Ia [expr [lindex $Ia $i-1]+$dt*0.5*(pow([lindex $accg $i],2.0)+pow([lindex $accg $i-1],2.0))*3.14/2.0/9.81];
-    	}
-
-	# Get the Arias intensit of the record
-	set I [lindex $Ia [llength $accg]-1];
-
-	# Find the time span between the specified percentages of I
-	for {set i 1} {$i <= [llength $Ia]} {incr i 1} {
-		if {[expr $I1*$I]>[lindex $Ia $i-1]} {set c1 $i};
-		if {[expr $I2*$I]>[lindex $Ia $i-1]} {set c2 $i};
-	}
-	set t1 [lindex $t $c1-1];
-	set t2 [lindex $t $c2-1];
-	set t12 [expr $t2-$t1];
-
-}

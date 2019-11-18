@@ -25,7 +25,7 @@ upvar 1 omega omega
 
 # Solve for lambda
 set lambda [eigen -genBandArpack $numModes]; # Default
-puts $lambda
+# puts $lambda
 
 # If this solver doesn't work, try another
 if {[lindex $lambda 0]<=0} {
