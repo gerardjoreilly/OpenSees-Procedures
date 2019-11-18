@@ -196,9 +196,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap gmsdir nmsfileX 
 		if {$IMtype==1} {
 			# IM is PGA
 			# Now get the spectral ordinates
-			getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] 0.0 $xi; # Get the PGA of the record in the X direction
+			getSaT $gmsdir/$EQnameX $dt 1.0 $xi; # Get the PGA of the record in the X direction
 			set IMX $pga
-			getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] 0.0 $xi; # Get the PGA of the record in the Y direction
+			getSaT $gmsdir/$EQnameY $dt 1.0 $xi; # Get the PGA of the record in the Y direction
 			set IMY $pga
 
 			# Now we have the IMX and IMY. In IDA we will use the geomen of these to get the
@@ -210,9 +210,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap gmsdir nmsfileX 
 			set Tcond [lindex $Tinfo 0]; # It will be the first entry in the Tinfo list
 
 			# Now get the spectral ordinates
-			getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] $Tcond $xi; # Get the Sa(T1,5%) of the record in the X direction
+			getSaT $gmsdir/$EQnameX $dt $Tcond $xi; # Get the Sa(T1,5%) of the record in the X direction
 			set IMX $Sa
-			getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] $Tcond $xi; # Get the Sa(T1,5%) of the record in the Y direction
+			getSaT $gmsdir/$EQnameY $dt $Tcond $xi; # Get the Sa(T1,5%) of the record in the Y direction
 			set IMY $Sa
 
 			# Now we have the IMX and IMY. In IDA we will use the geomen of these to get the
@@ -227,9 +227,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap gmsdir nmsfileX 
 			set Sa_listX {};
 			set Sa_listY {};
 			for {set pn 0} {$pn < $nT} {incr pn 1} {
-				getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] [lindex $Tinfo $pn] $xi; # Get the Sa(T1,5%) of the record in the X direction
+				getSaT $gmsdir/$EQnameX $dt [lindex $Tinfo $pn] $xi; # Get the Sa(T1,5%) of the record in the X direction
 				lappend Sa_listX $Sa
-				getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] [lindex $Tinfo $pn] $xi; # Get the Sa(T1,5%) of the record in the Y direction
+				getSaT $gmsdir/$EQnameY $dt [lindex $Tinfo $pn] $xi; # Get the Sa(T1,5%) of the record in the Y direction
 				lappend Sa_listY $Sa
 			}
 
@@ -249,9 +249,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap gmsdir nmsfileX 
 		} elseif {$IMtype==4} {
 			# IM is PGV
 			# Now get the spectral ordinates
-			getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] 0.0 $xi; # Get the PGA of the record in the X direction
+			getSaT $gmsdir/$EQnameX $dt 1.0 $xi; # Get the PGA of the record in the X direction
 			set IMX $pgv
-			getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] 0.0 $xi; # Get the PGA of the record in the Y direction
+			getSaT $gmsdir/$EQnameY $dt 1.0 $xi; # Get the PGA of the record in the Y direction
 			set IMY $pgv
 
 			# Now we have the IMX and IMY. In IDA we will use the geomen of these to get the
@@ -278,9 +278,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap gmsdir nmsfileX 
 			set Sa_listX {};
 			set Sa_listY {};
 			for {set pn 1} {$pn<=[llength $p_list]} {incr pn 1} {
-				getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
+				getSaT $gmsdir/$EQnameX $dt [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
 				lappend Sa_listX $Sa
-				getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
+				getSaT $gmsdir/$EQnameY $dt [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
 				lappend Sa_listY $Sa
 			}
 
@@ -312,9 +312,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap gmsdir nmsfileX 
 			set Sa_listX {};
 			set Sa_listY {};
 			for {set pn 1} {$pn<=[llength $p_list]} {incr pn 1} {
-				getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
+				getSaT $gmsdir/$EQnameX $dt [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
 				lappend Sa_listX $Sa
-				getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
+				getSaT $gmsdir/$EQnameY $dt [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
 				lappend Sa_listY $Sa
 			}
 
@@ -346,9 +346,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap gmsdir nmsfileX 
 			set Sa_listX {};
 			set Sa_listY {};
 			for {set pn 1} {$pn<=[llength $p_list]} {incr pn 1} {
-				getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
+				getSaT $gmsdir/$EQnameX $dt [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the X direction
 				lappend Sa_listX $Sa
-				getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
+				getSaT $gmsdir/$EQnameY $dt [lindex $p_list $pn-1] $xi; # Get the Sa(T1,5%) of the record in the Y direction
 				lappend Sa_listY $Sa
 			}
 
@@ -357,9 +357,9 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap gmsdir nmsfileX 
 			set SagmY [expr pow([lindex $Sa_listY 0]*[lindex $Sa_listY 1]*[lindex $Sa_listY 2]*[lindex $Sa_listY 3]*[lindex $Sa_listY 4],1/5.0)];
 
 			# Get the time between 5 and 75% of Arias Intensity
-			Arias $gmsdir/$EQnameX [lindex $dts_list $i-1] 0.05 0.75;
+			Arias $gmsdir/$EQnameX $dt 0.05 0.75;
 			set t12X $t12;
-			Arias $gmsdir/$EQnameY [lindex $dts_list $i-1] 0.05 0.75;
+			Arias $gmsdir/$EQnameY $dt 0.05 0.75;
 			set t12Y $t12;
 
 			# Get the IMs in the two directions

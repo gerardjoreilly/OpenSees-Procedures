@@ -1,30 +1,3 @@
-# ------------------------------------
-# -- Script to Compute Sa(T,xi%) -----
-# ------------------------------------
-# Gerard O'Reilly
-# EUCENTRE/IUSSPavia
-# Created: November 2014
-# Last Updated: November 2019
-#
-# This is a script that will return the Sa(T1) of a given record,
-# for a specified value of period T using the Newmark Average
-# Acceleration. This is based on the Newmark.m matlab function.
-
-# -----------------------------------
-# Inputs:
-# -----------------------------------
-# EQ:   Filename which is a single column file in units g (e.g "Eq.txt")
-# dt:   Time step in seconds (e.g 0.01)
-# xi:   Elastic damping (e.g 0.05)
-# T:    Period in seconds (e.g 1.0)
-
-# -----------------------------------
-# Outputs:
-#------------------------------------
-# Sa:	Sa(T,%) - Pseudo-Spectral Acceleration in g
-# Sv: 	Sv(T,%) - Pseudo-Spectral Velocity in m/s
-# Sd: 	Sd(T,%) - Spectral Displacement in m
-
 proc getSaT {EQ dt T xi} {
 	# -----------------------------------
 	# Inputs:
