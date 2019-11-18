@@ -4,7 +4,7 @@
 # Gerard O'Reilly
 # EUCENTRE/IUSSPavia
 # Created: November 2015
-# Last Updated: May 2017
+# Last Updated: November 2019
 
 # --------------------------------------------------------------------------------------------------
 # ----------------------------------------- Overview -----------------------------------------------
@@ -248,6 +248,16 @@ proc IDA_HTF {firstInt incrStep maxRuns IMtype Tinfo xi Dt dCap gmsdir nmsfileX 
 			set IMgeomean [expr pow($SaXgm*$SaYgm,0.5)]
 		} elseif {$IMtype==4} {
 			# IM is PGV
+			# Now get the spectral ordinates
+			getSaT $gmsdir/$EQnameX [lindex $dts_list $i-1] 0.0 $xi; # Get the PGA of the record in the X direction
+			set IMX $pgv
+			getSaT $gmsdir/$EQnameY [lindex $dts_list $i-1] 0.0 $xi; # Get the PGA of the record in the Y direction
+			set IMY $pgv
+
+			# Now we have the IMX and IMY. In IDA we will use the geomen of these to get the
+			# "current" IM. This way, the same scale factor will be applied to both
+			set IMgeomean [expr pow($IMX*$IMY,0.5)];
+
 		} elseif {$IMtype==5} {
 			# IM is Sa,gm at a specified periods
 			set T1m [lindex $Tinfo 0]; # It will be the first entry in the Tinfo list
