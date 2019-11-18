@@ -14,6 +14,8 @@ set dts_list [list 0.01]
 set xi 0.05
 set i 1
 
+set startTime [clock clicks -milliseconds];
+
 
 if {$IMtype==6} {
   # Get the length of the periods
@@ -48,5 +50,24 @@ if {$IMtype==6} {
 puts $Sa_listX
 puts $SaXgm
 puts $SaYgm
+puts $IMgeomean
 
 puts "Finished!"
+set totalTimeSEC [expr ([clock clicks -milliseconds]-$startTime)/1000];
+set totalTimeMIN [expr $totalTimeSEC/60];
+set totalTimeHR [expr $totalTimeMIN/60];
+puts [format "Total runtime was %.3f seconds" $totalTimeSEC];
+puts [format "Total runtime was %.3f minutes" $totalTimeMIN];
+puts [format "Total runtime was %.3f hours" $totalTimeHR];
+
+
+
+
+
+set startTime [clock clicks -milliseconds];
+set SaXgm [expr pow($SaXsumprod,1/($nT*1.0))]
+set SaYgm [expr pow($SaYsumprod,1/($nT*1.0))]
+set IMgeomean [expr pow($SaXgm*$SaYgm,0.5)]
+puts $IMgeomean
+set totalTimeSEC [expr ([clock clicks -milliseconds]-$startTime)/1000];
+puts [format "Total runtime was %.3f seconds" $totalTimeSEC];
