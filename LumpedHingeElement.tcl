@@ -38,6 +38,8 @@ set cr1	[expr $EIcr1/$EIg];
 set cr2	[expr $EIcr2/$EIg];
 set Icr1	[expr $cr1*$Iz];
 set Icr2	[expr $cr2*$Iz];
+if {$h>=$b} {set J [expr $h*pow($b,3)*(0.333-0.21*($h/$b)*(1-pow($b/$h,4)/12))];};
+if {$b>$h} {set J [expr $b*pow($h,3)*(0.333-0.21*($b/$h)*(1-pow($h/$b,4)/12))];};
 
 # --------------------------------------
 # ------ Hysteretic Parameters ---------
@@ -74,7 +76,7 @@ set phTag2  	107${ET}; 	# Create an aggregated section with this tag for the act
 
 # Create the internal elastic element behaviour
 # section Elastic $intTag $Ec $Ag $Izz $Iyy $Gc 0.01
-section Elastic $intTag $Ec $Ag $Iz $Iz [expr 0.4*$Ec] 0.01
+section Elastic $intTag $Ec $Ag $Iz $Iz [expr 0.4*$Ec] $J
 puts "Cracked section to be fixed"
 
 # Create the plastic hinge section
