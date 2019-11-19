@@ -66,7 +66,8 @@ print "${modaldir}eigenVectors${tag}.txt" -node
 
 # Compute the Rayleigh damping % if requested
 set n [llength $rdamp]
-if {$n>1} {
+if {$n==2} {
+	# Classical rayleigh damping
 	set wi [lindex $omega [lindex $rdamp 0]-1];
 	set wj [lindex $omega [lindex $rdamp 1]-1];
 	set a0 [expr $xi*2.0*$wi*$wj/($wi+$wj)];
@@ -77,14 +78,29 @@ if {$n>1} {
 		lappend xi_modes [expr 0.5*($a0/$wn+$a1*$wn)];
 	}
 } elseif {$n==1} {
+	# either stiffnes of mass proprtional damping
+	set wi [lindex $omega [lindex $rdamp 0]-1];
+	set a0 [expr 2.0*$xi*$wi];
+	set a1 [expr 2.0*$xi/$wi];
+	set xi_modes_m {}
+	set xi_modes_k {}
+	for {set i 1} {$i<=$numModes} {incr i 1} {
+		set wn [lindex $omega $i-1];
+		lappend xi_modes_m [expr 0.5*$a0/$wn];
+		lappend xi_modes_k [expr 0.5*$a1*$wn];
+	}
+
+} else {
 	lappend xi_modes 0.0
 }
 
 # Create the on screen output
 if {$pflag==1} {
 	for {set i 1} {$i<=$numModes} {incr i 1} {
-		if {$n>1} {
+		if {$n==2} {
 			puts [format "Mode %d - T=%.2fs   f=%.2fHz  omega:%.1frad/s    xi=%.2f%%" $i [lindex $Prd $i-1] [lindex $freq $i-1] [lindex $omega $i-1] [expr [lindex $xi_modes $i-1]*100.0]]
+		} elseif {$n==1} {
+			puts [format "Mode %d - T=%.2fs   f=%.2fHz  omega:%.1frad/s    xi(M)=%.2f%% xi(K)=%.2f%%" $i [lindex $Prd $i-1] [lindex $freq $i-1] [lindex $omega $i-1] [expr [lindex $xi_modes_m $i-1]*100.0] [expr [lindex $xi_modes_k $i-1]*100.0]]
 		} else {
 			puts [format "Mode %d - T=%.2fs   f=%.2fHz  omega:%.1frad/s " $i [lindex $Prd $i-1] [lindex $freq $i-1] [lindex $omega $i-1]]
 		}
