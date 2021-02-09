@@ -6,7 +6,7 @@
 # Date: February 2015
 # Last Updated: March 2017
 # --------------------------------------
-proc modalAnalysis {numModes {pflag 0} {tag ""} {modaldir ""} {rdamp {0}} {xi 0.05}} {
+proc modalAnalysis {numModes {pflag 0} {tag ""} {modaldir ""} {rdamp {}} {xi 0.05}} {
 # numModes 		Number of Modes (e.g. 2)
 # pflag 		Print flag - 1 to show the modal info onscreen or 0 for nothing (default: 0)
 # tag 		Tag to append to period and eigenvector filenames (e.g. "_Frame") (default "")
