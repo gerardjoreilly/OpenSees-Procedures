@@ -44,7 +44,7 @@ proc runNRHA3D {Dt Tmax Dc tNode bNode log {pflag 0}} {
 	# --------------------------------------------------
 	# Dt:		Analysis time step
 	# Tmax:	Length of the record (including padding of 0's)
-	# Dc:		Drift capacity for both storey and roof drift (%)
+	# Dc:		Deformation capacity (radians or metres)
 	# tNode:	List of top nodes (e.g. {2 3 4 5})
 	# bNode:	List of bottom node (e.g. {1 2 3 4})
 	# log:	File handle of the logfile
@@ -68,15 +68,13 @@ proc runNRHA3D {Dt Tmax Dc tNode bNode log {pflag 0}} {
 	set cIndex 		0;			# Initially define the control index (-1 for non-converged, 0 for stable, 1 for global collapse, 2 for local collapse)
 	set controlTime 	0.0;			# Start the controlTime
 	set ok		0;			# Set the convergence to 0 (initially converged)
-	set mdrft 		0.0;			# Set the initial storey drift
+	set md 		0.0;			# Set the initial storey drift
 	set mflr		0;			# Set the initial storey collapse location
 
 	# Set up the storey drift and acceleration values
 	set h 		{};
-	set mdrftX 		{};
-	set mdrftY 		{};
-	set maccelX 	{0.0};
-	set maccelY 	{0.0};
+	set mdX 		{};
+	set mdY 		{};
 	set bdg_h 		0.0;
 	for {set i 1} {$i<=[llength $tNode]} {incr i 1} {
 		# Find the coordinates of the nodes in Global Z (3)
@@ -90,13 +88,9 @@ proc runNRHA3D {Dt Tmax Dc tNode bNode log {pflag 0}} {
 
 		# This means we take the distance in Z (3) in my coordinates systems at least. This is X-Y/Z| so X=1 Y=2 Z=3. (gli altri vacca gare)
 		lappend h $dist;
-		lappend mdrftX 0.0; # We will populate the lists with zeros initially
-		lappend mdrftY 0.0;
-		lappend maccelX 0.0;
-		lappend maccelY 0.0;
+		lappend mdX 0.0; # We will populate the lists with zeros initially
+		lappend mdY 0.0;
 		if {$dist==0} {puts "WARNING: Zerolength found in drift check"};
-
-
 	}
 
 	# Run the actual analysis now
@@ -142,7 +136,6 @@ proc runNRHA3D {Dt Tmax Dc tNode bNode log {pflag 0}} {
 			set ok [analyze 1 $Dt]
 			algorithm 	$algorithmType
 		}
-		# Next change both algorithm and tolerance to achieve convergence....
 		if {$ok != 0} {
 			puts " ~~~ Failed at $controlTime - Trying Newton with Initial Tangent & relaxed convergence......"
 			test NormDispIncr [expr $tolInit*0.1] [expr $iterInit*50]
@@ -167,7 +160,6 @@ proc runNRHA3D {Dt Tmax Dc tNode bNode log {pflag 0}} {
 			test 		$testType $tolInit $iterInit
 			algorithm 	$algorithmType
 		}
-		# Next half the timestep with both algorithm and tolerance reduction, if this doesn't work - in bocca al lupo
 		if {$ok != 0} {
 			puts " ~~~ Failed at $controlTime - Trying Newton with Initial Tangent, reduced timestep & relaxed convergence......"
 			test NormDispIncr [expr $tolInit*0.1] [expr $iterInit*50]
@@ -204,75 +196,55 @@ proc runNRHA3D {Dt Tmax Dc tNode bNode log {pflag 0}} {
 		}
 
 		# Check the actual state of the model with respect to the limits provided
-		# Need to get the PGA (this is actually zero since nodeAcce returns relative not absolute values)
-		set base_accelX 	[expr [nodeAccel [lindex $bNode 0] 1]/9.81]; 	# Current base node accel in X in g
-		set base_accelY 	[expr [nodeAccel [lindex $bNode 0] 2]/9.81]; 	# Current base node accel in Y in g
 
-		if {$base_accelX>[lindex $maccelX 0]} {set maccelX [lreplace $maccelX 0 0 $base_accelX]};
-		if {$base_accelY>[lindex $maccelY 0]} {set maccelY [lreplace $maccelY 0 0 $base_accelY]};
-
-		# Check the storey drifts and accelerations
+		# Check the storey drifts
 		for {set i 1} {$i<=[llength $tNode]} {incr i 1} {
 			set tNode_dispX 	[nodeDisp [lindex $tNode $i-1] 1]; 	# Current top node disp in X
 			set tNode_dispY 	[nodeDisp [lindex $tNode $i-1] 2]; 	# Current top node disp in Y
 			set bNode_dispX 	[nodeDisp [lindex $bNode $i-1] 1]; 	# Current bottom node disp in X
 			set bNode_dispY 	[nodeDisp [lindex $bNode $i-1] 2]; 	# Current bottom node disp in Y
-			set cHt				[lindex $h $i-1];					# Current storey height
-			set cdrftX			[expr 100.0*abs($tNode_dispX-$bNode_dispX)/$cHt];	# Current storey drift in X at the current floor in %
-			set cdrftY			[expr 100.0*abs($tNode_dispY-$bNode_dispY)/$cHt];	# Current storey drift in X at the current floor in %
-			if {$cdrftX>=[lindex $mdrftX $i-1]} {set mdrftX [lreplace $mdrftX $i-1 $i-1 $cdrftX]};
-			if {$cdrftY>=[lindex $mdrftY $i-1]} {set mdrftY [lreplace $mdrftY $i-1 $i-1 $cdrftY]};
+			if {$dist>0} {
+				set cHt				[lindex $h $i-1];					# Current storey height
+				set cdX			[expr abs($tNode_dispX-$bNode_dispX)/$cHt];	# Current demand in X at the current floor in radians
+				set cdY			[expr abs($tNode_dispY-$bNode_dispY)/$cHt];	# Current demand in Y at the current floor in radians
+			} elseif {$dist==0} {
+				# if the height is zero then just use the absolute value of displacement
+				set cdX			[expr abs($tNode_dispX-$bNode_dispX)];	# Current deformation in X at the current floor
+				set cdY			[expr abs($tNode_dispY-$bNode_dispY)];	# Current deformation in Y at the current floor
+			}
+			# Check to see if we have a new maximum for the current demand
+			if {$cdX>=[lindex $mdX $i-1]} {set mdX [lreplace $mdX $i-1 $i-1 $cdX]};
+			if {$cdY>=[lindex $mdY $i-1]} {set mdY [lreplace $mdY $i-1 $i-1 $cdY]};
 
-	# 		set cdrft	[expr sqrt(pow($cdrftX,2)+pow($cdrftY,2))]; # square root sum of squares
-			if {$cdrftX>=$cdrftY} {set cdrft $cdrftX} else {set cdrft $cdrftY}; # maximum of the two components
-			if {$cdrft>$mdrft} {set mdrft $cdrft; set mflr $i}; # Update the current maximum storey drift and where it is
+	# 		set cd	[expr sqrt(pow($cdX,2)+pow($cdY,2))]; # square root sum of squares
+			if {$cdX>=$cdY} {set cd $cdX} else {set cd $cdY}; # maximum of the two components
+			if {$cd>$md} {set md $cd; set mflr $i}; # Update the current maximum demand and where it is
 
-			# Now get the accelerations
-			set Node_accelX 	[expr [nodeAccel [lindex $tNode $i-1] 1]/9.81]; 	# Current top node accel in X in g
-			set Node_accelY 	[expr [nodeAccel [lindex $tNode $i-1] 2]/9.81]; 	# Current top node accel in Y in g
-			set caccelX			[expr 1.0*abs($Node_accelX)];
-			set caccelY			[expr 1.0*abs($Node_accelY)];
-			if {$caccelX>=[lindex $maccelX $i]} {set maccelX [lreplace $maccelX $i $i $caccelX]};
-			if {$caccelY>=[lindex $maccelY $i]} {set maccelY [lreplace $maccelY $i $i $caccelY]};
 		}
 
-		if {$mdrft>=$Dc} {set cIndex 1; set mdrft $Dc; wipe}; 			# Set the state of the model to local collapse (=1)
-
+		if {$md>=$Dc} {set cIndex 1; set md $Dc; wipe}; 			# Set the state of the model to local collapse (=1)
 	}
 
 	# Create some output
 	puts $log [format "FinalState:%d at %.3f of %.3f seconds" $cIndex $controlTime $Tmax]; # Print to the logfile the final state
-	puts $log [format "PeakStoreyDrift:%.2f%% at %d" $mdrft $mflr]; 	# Print to the max interstorey drift and where it is
+	puts $log [format "PeakDemand:%.5f at %d" $md $mflr]; 	# Print to the max demand and where it is
 
 
 	# Print to the max interstorey drifts
-	puts -nonewline $log "PeakStoreyDriftX: ";
-	for {set ii 1} {$ii <= [llength $mdrftX]} {incr ii 1} {
-		puts -nonewline $log [format "%.2f " [lindex $mdrftX $ii-1]]
+	puts -nonewline $log "PeakDemandX: ";
+	for {set ii 1} {$ii <= [llength $mdX]} {incr ii 1} {
+		puts -nonewline $log [format "%.5f " [lindex $mdX $ii-1]]
 	}
-	puts $log "%"; 	# Print to the max storey drifts
-	puts -nonewline $log "PeakStoreyDriftY: ";
-	for {set ii 1} {$ii <= [llength $mdrftY]} {incr ii 1} {
-		puts -nonewline $log [format "%.2f " [lindex $mdrftY $ii-1]]
-	}
-	puts $log "%"; 	# Print to the max storey drifts
 
+	puts -nonewline $log "PeakDemandY: ";
+	for {set ii 1} {$ii <= [llength $mdY]} {incr ii 1} {
+		puts -nonewline $log [format "%.5f " [lindex $mdY $ii-1]]
+	}
 
-	# Print to the max max floor accelerations
-	puts -nonewline $log "PeakFloorAccelerationX: ";
-	for {set ii 1} {$ii <= [llength $maccelX]} {incr ii 1} {
-		puts -nonewline $log [format "%.2f " [lindex $maccelX $ii-1]]
-	}
-	puts $log "g"; 	# Print to the max floor accelerations
-	puts -nonewline $log "PeakFloorAccelerationY: ";
-	for {set ii 1} {$ii <= [llength $maccelY]} {incr ii 1} {
-		puts -nonewline $log [format "%.2f " [lindex $maccelY $ii-1]]
-	}
-	puts $log "g"; 	# Print to the max floor accelerations
 
 
 	if {$pflag>0} {
-		puts [format "PeakStoreyDrift:%.2f %% at %d" $mdrft $mflr]; 	# Print to the max roof drift
+		puts [format "PeakDemand:%.5f at %d" $md $mflr]; 	# Print to the max demand
 	}
 	if {$cIndex == -1} {puts ":::::: ANALYSIS FAILED TO CONVERGE at $controlTime of $Tmax :::::"}
 	if {$cIndex == 0} {puts  "######## ANALYSIS COMPLETED SUCCESSFULLY #####"}
